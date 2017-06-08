@@ -8,7 +8,7 @@ import (
 )
 
 // ErrEndSymbolExisted means you should choose another EndSymbol
-var ErrEndSymbolExisted = errors.New("EndSymbol existed in string, please Choose another one")
+var ErrEndSymbolExisted = errors.New("bwt: end-symbol existed in string")
 
 // Transform returns Burrows–Wheeler transform  of a byte slice.
 // See https://en.wikipedia.org/wiki/Burrows%E2%80%93Wheeler_transform
@@ -60,4 +60,48 @@ func InverseTransform(t []byte, es byte) []byte {
 		}
 	}
 	return s
+}
+
+// SuffixArray returns the suffix array of s
+func SuffixArray(s []byte) []int {
+	n := len(s)
+	suffixMap := make(map[string]int, n)
+	for i := 0; i < n; i++ {
+		suffixMap[string(s[i:])] = i
+	}
+	suffixes := make([]string, n)
+	i := 0
+	for suffix := range suffixMap {
+		suffixes[i] = suffix
+		i++
+	}
+	indice := make([]int, n+1)
+	indice[0] = n
+	i = 1
+	sort.Strings(suffixes)
+	for _, suffix := range suffixes {
+		indice[i] = suffixMap[suffix]
+		i++
+	}
+	return indice
+}
+
+// ErrInvalidSuffixArray means length of sa is not equal to 1+len(s)
+var ErrInvalidSuffixArray = errors.New("bwt: invalid suffix array")
+
+// FromSuffixArray compute BWT from sa
+func FromSuffixArray(s []byte, sa []int, es byte) ([]byte, error) {
+	if len(s)+1 != len(sa) || sa[0] != len(s) {
+		return nil, ErrInvalidSuffixArray
+	}
+	bwt := make([]byte, len(sa))
+	bwt[0] = s[len(s)-1]
+	for i := 1; i < len(sa); i++ {
+		if sa[i] == 0 {
+			bwt[i] = es
+		} else {
+			bwt[i] = s[sa[i]-1]
+		}
+	}
+	return bwt, nil
 }

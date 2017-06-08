@@ -16,3 +16,17 @@ func TestTransformAndInverseTransform(t *testing.T) {
 		t.Error("Test failed: InverseTransform")
 	}
 }
+
+func TestFromSuffixArray(t *testing.T) {
+	s := "GATGCGAGAGATG"
+	trans := "GGGGGGTCAA$TAA"
+
+	sa := SuffixArray([]byte(s))
+	B, err := FromSuffixArray([]byte(s), sa, '$')
+	if err != nil {
+		t.Error("Test failed: FromSuffixArray error")
+	}
+	if string(B) != trans {
+		t.Error("Test failed: FromSuffixArray returns wrong result")
+	}
+}

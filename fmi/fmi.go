@@ -5,14 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/shenwei356/bwt"
 	"github.com/shenwei356/util/byteutil"
-	"github.com/shenwei356/util/struct/sa"
 	"github.com/shenwei356/util/struct/stack"
 )
 
-// FMIndex is  Burrows-Wheeler Index
+// FMIndex is Burrows-Wheeler Index
 type FMIndex struct {
 	EndSymbol byte
 	// Burrows-Wheeler Transform
@@ -51,6 +51,7 @@ func (fmi *FMIndex) Transform(s []byte) ([]byte, error) {
 	fmi.BWT = bwt
 	fmi.M = rotations
 	fmi.CountOfLetters = byteutil.CountOfByte(fmi.BWT)
+	delete(fmi.CountOfLetters, fmi.EndSymbol)
 	fmi.Alphabet = byteutil.AlphabetFromCountOfByte(fmi.CountOfLetters)
 	fmi.C = ComputeC(fmi.M, fmi.Alphabet)
 	fmi.Occ = ComputeOccurrence(fmi.BWT, fmi.Alphabet)
@@ -59,12 +60,12 @@ func (fmi *FMIndex) Transform(s []byte) ([]byte, error) {
 
 // TransformForLocate compute SuffixArray in addition to Transform
 func (fmi *FMIndex) TransformForLocate(s []byte) ([]byte, error) {
-	bwt, err := fmi.Transform(s)
+	b, err := fmi.Transform(s)
 	if err != nil {
 		return nil, err
 	}
-	fmi.SuffixArray = sa.SuffixArray(s)
-	return bwt, nil
+	fmi.SuffixArray = bwt.SuffixArray(s)
+	return b, nil
 }
 
 // Last2First mapping
@@ -100,9 +101,13 @@ func (fmi *FMIndex) Count(pattern []byte) int {
 	return end - start + 1
 }
 
+// ErrSuffixArrayIsNil is xxx
+var ErrSuffixArrayIsNil = errors.New("bwt/fmi: SuffixArray is nil, you should call TransformForLocate instead of Transform")
+
 // Locate locates the pattern
 func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 	locations := []int{}
+	locationsMap := make(map[int]struct{})
 	letters := byteutil.Alphabet(query)
 	for _, letter := range letters {
 		if _, ok := fmi.CountOfLetters[letter]; !ok {
@@ -111,7 +116,7 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 	}
 
 	if fmi.SuffixArray == nil {
-		return nil, errors.New("SuffixArray is nil, you should call TransformForLocate instead of Transform")
+		return nil, ErrSuffixArrayIsNil
 	}
 
 	n := len(fmi.BWT)
@@ -121,38 +126,73 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 		start, end int
 		mismatches int
 	}
-	matches.Put(Match{query, 0, n - 1, mismatches})
+	matches.Put(Match{query: query, start: 1, end: n - 1, mismatches: mismatches})
+	// fmt.Printf("====%s====\n", query)
+	// fmt.Println(fmi)
 	for !matches.Empty() {
 		match := matches.Pop().(Match)
-		query = match.query[0 : len(query)-1]
-		last := match.query[len(query)-1]
+		query = match.query[0 : len(match.query)-1]
+		last := match.query[len(match.query)-1]
 		var letters []byte
-		if mismatches == 0 {
+		if match.mismatches == 0 {
 			letters = []byte{last}
 		} else {
 			letters = fmi.Alphabet
 		}
+
+		// fmt.Printf("\n%s, %s, %c\n", match.query, query, last)
+		// fmt.Printf("letters: %s\n", letters)
+		// 	fmt.Printf("start: %d, end: %d, mismatches: %d\n", match.start, match.end, match.mismatches)
 		for _, c := range letters {
-			start := fmi.C[c] + fmi.Occ[c][match.start-2] + 1
-			end := fmi.C[c] + fmi.Occ[c][match.end-1]
+			//  fmt.Printf("  %c, C[%c]: %d, Occ[%d-1]: %d\n", c, c, fmi.C[c], match.start, fmi.Occ[c][match.start-1])
+			start := fmi.C[c] + fmi.Occ[c][match.start-1]
+			end := fmi.C[c] + fmi.Occ[c][match.end] - 1
+			// fmt.Printf("    s: %d, e: %d\n", start, end)
+
 			if start <= end {
 				if len(query) == 0 {
 					for _, i := range fmi.SuffixArray[start : end+1] {
-						locations = append(locations, i)
+						// fmt.Printf("    >>> found: %d\n", i)
+						locationsMap[i] = struct{}{}
+						// locations = append(locations, i)
 					}
 				} else {
-					mm := match.mismatches
+					var m int
 					if c != last {
-						if match.mismatches-1 > 0 {
-							mm = match.mismatches - 1
+						if match.mismatches > 1 {
+							m = match.mismatches - 1
+						} else if match.mismatches == 1 {
+							m = 0
 						} else {
-							mm = 0
+							break
 						}
 					}
-					matches.Put(Match{query, start, end, mm})
+
+					// fmt.Printf("    >>> candidate: query: %s, start: %d, end: %d, m: %d\n", query, start, end, m)
+					matches.Put(Match{query: query, start: start, end: end, mismatches: m})
+
+				}
+			} else {
+				if len(query) > 0 {
+					var m int
+					if match.mismatches > 1 {
+						m = match.mismatches - 1
+					} else if match.mismatches == 1 {
+						m = 0
+					} else {
+						break
+					}
+					// fmt.Printf("    >>> candidate: query: %s, start: %d, end: %d, m: %d\n", query, start, end, m)
+					matches.Put(Match{query: query, start: 1, end: end, mismatches: m})
 				}
 			}
 		}
+	}
+	i := 0
+	locations = make([]int, len(locationsMap))
+	for loc := range locationsMap {
+		locations[i] = loc
+		i++
 	}
 	sort.Ints(locations)
 	return locations, nil
@@ -172,9 +212,14 @@ func (fmi *FMIndex) String() string {
 		buffer.WriteString(fmt.Sprintf("  %c: %d\n", letter, fmi.C[letter]))
 	}
 	buffer.WriteString("Occ:\n")
+	buffer.WriteString(fmt.Sprintf("  BWT[%s]\n", strings.Join(strings.Split(string(fmi.BWT), ""), " ")))
 	for _, letter := range fmi.Alphabet {
 		buffer.WriteString(fmt.Sprintf("  %c: %v\n", letter, fmi.Occ[letter]))
 	}
+
+	buffer.WriteString("SA:\n")
+	buffer.WriteString(fmt.Sprintf("  %d\n", fmi.SuffixArray))
+
 	return buffer.String()
 }
 
@@ -204,7 +249,7 @@ func ComputeOccurrence(bwt []byte, letters []byte) map[byte][]int {
 	if letters == nil {
 		letters = byteutil.Alphabet(bwt)
 	}
-	occ := make(map[byte][]int, len(letters))
+	occ := make(map[byte][]int, len(letters)-1)
 	for _, letter := range letters {
 		occ[letter] = []int{0}
 	}

@@ -2,19 +2,6 @@ package fmi
 
 import "testing"
 
-func TestCount(t *testing.T) {
-	s := "abracadabra"
-	fmi := NewFMIndex()
-
-	_, err := fmi.Transform([]byte(s))
-	if err != nil {
-		t.Errorf("Test failed: TestBWIndex: %s", err)
-	}
-	if fmi.Count([]byte("bra")) != 2 || fmi.Count([]byte("a")) != 5 || fmi.Count([]byte("b")) != 2 {
-		t.Errorf("Test failed: TestBWIndex: %s", "Count failed")
-	}
-}
-
 func TestLocate(t *testing.T) {
 	var err error
 	fmi := NewFMIndex()
@@ -27,13 +14,21 @@ func TestLocate(t *testing.T) {
 	}
 
 	var cases = []Case{
-		Case{"GATGCGAGAGATG", "GAGA", 0, []int{5, 7}},
-		Case{"abracadabra", "ab", 0, []int{0, 7}},
-
+		Case{"mississippi", "iss", 0, []int{1, 4}},
+		Case{"abcabcabc", "abc", 0, []int{0, 3, 6}},
+		Case{"abcabcabc", "gef", 0, []int{}},
 		Case{"abcabd", "abc", 1, []int{0, 3}},
-		Case{"abcabd", "abd", 1, []int{0, 3}},
-		Case{"abcabd", "bc", 0, []int{1}},
-		Case{"abcabd", "bc", 1, []int{1, 4}},
+
+		Case{"acctatac", "ac", 0, []int{0, 6}},
+		Case{"acctatac", "tac", 0, []int{5}},
+		Case{"acctatac", "tac", 1, []int{3, 5}},
+		Case{"acctatac", "atac", 0, []int{4}},
+		Case{"acctatac", "acctatac", 0, []int{0}},
+		Case{"acctatac", "acctatac", 1, []int{0}},
+		Case{"acctatac", "cctatac", 1, []int{1}},
+
+		Case{"acctatac", "caa", 2, []int{1, 2, 3, 4, 5}},
+		Case{"acctatac", "caa", 3, []int{0, 1, 2, 3, 4, 5}},
 	}
 
 	for i, c := range cases {
@@ -46,14 +41,15 @@ func TestLocate(t *testing.T) {
 		if err != nil {
 			t.Errorf("case #%d: Locate: %s", i, err)
 		}
+
 		if len(loc) != len(c.r) {
-			t.Errorf("case #%d: Locate %s at %s, result: %d", i+1, c.q, c.s, loc)
+			t.Errorf("case #%d: Locate '%s' in '%s' (allow %d mismatch), result: %d. right answer: %d", i+1, c.q, c.s, c.m, loc, c.r)
 			break
 		}
 
 		for j := 0; j < len(loc); j++ {
 			if loc[j] != c.r[j] {
-				t.Errorf("case #%d: Locate %s at %s, result: %d", i+1, c.q, c.s, loc)
+				t.Errorf("case #%d: Locate '%s' in '%s' (allow %d mismatch), result: %d. right answer: %d", i+1, c.q, c.s, c.m, loc, c.r)
 			}
 		}
 	}

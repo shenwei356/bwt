@@ -89,27 +89,22 @@ func (fmi *FMIndex) nextLetterInAlphabet(c byte) byte {
 	return nextLetter
 }
 
-// Count returns number of occurrences of a pattern
-func (fmi *FMIndex) Count(pattern []byte) int {
-	c := pattern[len(pattern)-1]
-	start, end := fmi.C[c]+1, fmi.C[fmi.nextLetterInAlphabet(c)]
-	for i := len(pattern) - 2; i >= 0; i-- {
-		c := pattern[i]
-		start = fmi.C[c] + fmi.Occ[c][start-2] + 1
-		end = fmi.C[c] + fmi.Occ[c][end-1]
-	}
-	return end - start + 1
-}
-
 // ErrSuffixArrayIsNil is xxx
 var ErrSuffixArrayIsNil = errors.New("bwt/fmi: SuffixArray is nil, you should call TransformForLocate instead of Transform")
+
+type sMatch struct {
+	query      []byte
+	start, end int
+	mismatches int
+}
 
 // Locate locates the pattern
 func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 	locations := []int{}
 	locationsMap := make(map[int]struct{})
 	letters := byteutil.Alphabet(query)
-	for _, letter := range letters {
+
+	for _, letter := range letters { // query having illegal letter
 		if _, ok := fmi.CountOfLetters[letter]; !ok {
 			return locations, nil
 		}
@@ -121,19 +116,19 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 
 	n := len(fmi.BWT)
 	var matches stack.Stack
-	type Match struct {
-		query      []byte
-		start, end int
-		mismatches int
-	}
-	matches.Put(Match{query: query, start: 1, end: n - 1, mismatches: mismatches})
+
+	// start and end are 0-based
+	matches.Put(sMatch{query: query, start: 0, end: n - 1, mismatches: mismatches})
 	// fmt.Printf("====%s====\n", query)
 	// fmt.Println(fmi)
+	var match sMatch
+	var last byte
+	var start, end int
+	var m int
 	for !matches.Empty() {
-		match := matches.Pop().(Match)
+		match = matches.Pop().(sMatch)
 		query = match.query[0 : len(match.query)-1]
-		last := match.query[len(match.query)-1]
-		var letters []byte
+		last = match.query[len(match.query)-1]
 		if match.mismatches == 0 {
 			letters = []byte{last}
 		} else {
@@ -141,49 +136,35 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 		}
 
 		// fmt.Printf("\n%s, %s, %c\n", match.query, query, last)
-		// fmt.Printf("letters: %s\n", letters)
-		// 	fmt.Printf("start: %d, end: %d, mismatches: %d\n", match.start, match.end, match.mismatches)
+		// fmt.Printf("query: %s, last: %c\n", query, last)
 		for _, c := range letters {
-			//  fmt.Printf("  %c, C[%c]: %d, Occ[%d-1]: %d\n", c, c, fmi.C[c], match.start, fmi.Occ[c][match.start-1])
-			start := fmi.C[c] + fmi.Occ[c][match.start-1]
-			end := fmi.C[c] + fmi.Occ[c][match.end] - 1
-			// fmt.Printf("    s: %d, e: %d\n", start, end)
+			// fmt.Printf("letter: %c, start: %d, end: %d, mismatches: %d\n", c, match.start, match.end, match.mismatches)
+			if match.start == 0 {
+				start = fmi.C[c] + 0
+			} else {
+				start = fmi.C[c] + fmi.Occ[c][match.start-1]
+			}
+			end = fmi.C[c] + fmi.Occ[c][match.end] - 1
+			//fmt.Printf("    s: %d, e: %d\n", start, end)
 
 			if start <= end {
 				if len(query) == 0 {
 					for _, i := range fmi.SuffixArray[start : end+1] {
 						// fmt.Printf("    >>> found: %d\n", i)
 						locationsMap[i] = struct{}{}
-						// locations = append(locations, i)
 					}
 				} else {
-					var m int
+					m = match.mismatches
 					if c != last {
 						if match.mismatches > 1 {
 							m = match.mismatches - 1
-						} else if match.mismatches == 1 {
-							m = 0
 						} else {
-							break
+							m = 0
 						}
 					}
 
 					// fmt.Printf("    >>> candidate: query: %s, start: %d, end: %d, m: %d\n", query, start, end, m)
-					matches.Put(Match{query: query, start: start, end: end, mismatches: m})
-
-				}
-			} else {
-				if len(query) > 0 {
-					var m int
-					if match.mismatches > 1 {
-						m = match.mismatches - 1
-					} else if match.mismatches == 1 {
-						m = 0
-					} else {
-						break
-					}
-					// fmt.Printf("    >>> candidate: query: %s, start: %d, end: %d, m: %d\n", query, start, end, m)
-					matches.Put(Match{query: query, start: 1, end: end, mismatches: m})
+					matches.Put(sMatch{query: query, start: start, end: end, mismatches: m})
 				}
 			}
 		}

@@ -1,6 +1,7 @@
 package bwt
 
 import (
+	"fmt"
 	"math/rand"
 	"testing"
 )
@@ -31,6 +32,23 @@ func TestFromSuffixArray(t *testing.T) {
 	}
 	if string(B) != trans {
 		t.Error("Test failed: FromSuffixArray returns wrong result")
+	}
+}
+
+func TestSA(t *testing.T) {
+	s := "mississippi"
+	sa := SuffixArray([]byte(s))
+	sa1 := []int{11, 10, 7, 4, 1, 0, 9, 8, 6, 3, 5, 2}
+	// fmt.Printf("%s\nanswer: %v, result: %v", s, sa1, sa)
+	if len(sa) != len(sa1) {
+		t.Error(fmt.Errorf("sa error. answer: %v, result: %v", sa1, sa))
+		return
+	}
+	for i := range sa {
+		if sa[i] != sa1[i] {
+			t.Error(fmt.Errorf("sa error. answer: %v, result: %v", sa1, sa))
+			return
+		}
 	}
 }
 

@@ -1,11 +1,13 @@
 package fmi
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestLocate(t *testing.T) {
 	var err error
-	fmi := NewFMIndex()
 	var loc []int
+	var fmi *FMIndex
 
 	type Case struct {
 		s, q string
@@ -32,26 +34,29 @@ func TestLocate(t *testing.T) {
 	}
 
 	for i, c := range cases {
+		fmi = NewFMIndex()
 		_, err = fmi.TransformForLocate([]byte(c.s))
 		if err != nil {
 			t.Errorf("case #%d: TransformForLocate: %s", i+1, err)
+			return
 		}
 
 		loc, err = fmi.Locate([]byte(c.q), c.m)
 		if err != nil {
 			t.Errorf("case #%d: Locate: %s", i, err)
+			return
 		}
 
 		if len(loc) != len(c.r) {
 			t.Errorf("case #%d: Locate '%s' in '%s' (allow %d mismatch), result: %d. right answer: %d", i+1, c.q, c.s, c.m, loc, c.r)
-			break
+			return
 		}
 
 		for j := 0; j < len(loc); j++ {
 			if loc[j] != c.r[j] {
 				t.Errorf("case #%d: Locate '%s' in '%s' (allow %d mismatch), result: %d. right answer: %d", i+1, c.q, c.s, c.m, loc, c.r)
+				return
 			}
 		}
 	}
-
 }

@@ -14,23 +14,30 @@ import (
 
 // FMIndex is Burrows-Wheeler Index
 type FMIndex struct {
+	// EndSymbol
 	EndSymbol byte
+
 	// Burrows-Wheeler Transform
 	BWT []byte
+
 	// Alphabet in the BWT
 	Alphabet []byte
+
 	// Count of Letters in Alphabet
 	CountOfLetters map[byte]int
-	// Matrix M where each row is a rotation of the text,
-	// and the rows have been sorted lexicographically.
-	M [][]byte
+
+	// First column of BWM
+	F []byte
+
 	// C[c] is a table that, for each character c in the alphabet,
 	// contains the number of occurrences of lexically smaller characters
 	// in the text.
 	C map[byte]int
+
 	// Occ(c, k) is the number of occurrences of character c in the
 	// prefix L[1..k], k is 0-based
 	Occ map[byte][]int
+
 	// SuffixArray, only used when call Locate
 	SuffixArray []int
 }
@@ -44,28 +51,33 @@ func NewFMIndex() *FMIndex {
 
 // Transform return Burrows-Wheeler-Transform of s
 func (fmi *FMIndex) Transform(s []byte) ([]byte, error) {
-	bwt, rotations, err := bwt.Transform(s, fmi.EndSymbol)
+	var err error
+
+	sa := bwt.SuffixArray(s)
+	fmi.SuffixArray = sa
+
+	fmi.BWT, err = bwt.FromSuffixArray(s, fmi.SuffixArray, fmi.EndSymbol)
 	if err != nil {
 		return nil, err
 	}
-	fmi.BWT = bwt
-	fmi.M = rotations
+
+	F := make([]byte, len(s)+1)
+	F[0] = fmi.EndSymbol
+	for i := 1; i <= len(s); i++ {
+		F[i] = s[sa[i]]
+	}
+	fmi.F = F
+
 	fmi.CountOfLetters = byteutil.CountOfByte(fmi.BWT)
 	delete(fmi.CountOfLetters, fmi.EndSymbol)
-	fmi.Alphabet = byteutil.AlphabetFromCountOfByte(fmi.CountOfLetters)
-	fmi.C = ComputeC(fmi.M, fmi.Alphabet)
-	fmi.Occ = ComputeOccurrence(fmi.BWT, fmi.Alphabet)
-	return bwt, nil
-}
 
-// TransformForLocate compute SuffixArray in addition to Transform
-func (fmi *FMIndex) TransformForLocate(s []byte) ([]byte, error) {
-	b, err := fmi.Transform(s)
-	if err != nil {
-		return nil, err
-	}
-	fmi.SuffixArray = bwt.SuffixArray(s)
-	return b, nil
+	fmi.Alphabet = byteutil.AlphabetFromCountOfByte(fmi.CountOfLetters)
+
+	fmi.C = ComputeC(fmi.F, fmi.Alphabet)
+
+	fmi.Occ = ComputeOccurrence(fmi.BWT, fmi.Alphabet)
+
+	return fmi.BWT, nil
 }
 
 // Last2First mapping
@@ -184,10 +196,8 @@ func (fmi *FMIndex) String() string {
 	buffer.WriteString(fmt.Sprintf("EndSymbol: %c\n", fmi.EndSymbol))
 	buffer.WriteString(fmt.Sprintf("BWT: %s\n", string(fmi.BWT)))
 	buffer.WriteString(fmt.Sprintf("Alphabet: %s\n", string(fmi.Alphabet)))
-	buffer.WriteString("M:\n")
-	for i, r := range fmi.M {
-		buffer.WriteString(fmt.Sprintf("%5d: %s\n", i, string(r)))
-	}
+	buffer.WriteString("F:\n")
+	buffer.WriteString(string(fmi.F))
 	buffer.WriteString("C:\n")
 	for _, letter := range fmi.Alphabet {
 		buffer.WriteString(fmt.Sprintf("  %c: %d\n", letter, fmi.C[letter]))
@@ -208,14 +218,13 @@ func (fmi *FMIndex) String() string {
 // C[c] is a table that, for each character c in the alphabet,
 // contains the number of occurrences of lexically smaller characters
 // in the text.
-func ComputeC(m [][]byte, alphabet []byte) map[byte]int {
+func ComputeC(L []byte, alphabet []byte) map[byte]int {
 	if alphabet == nil {
-		byteutil.Alphabet(m[0])
+		alphabet = byteutil.Alphabet(L)
 	}
 	C := make(map[byte]int, len(alphabet))
 	count := 0
-	for _, r := range m {
-		c := r[0]
+	for _, c := range L {
 		if _, ok := C[c]; !ok {
 			C[c] = count
 		}

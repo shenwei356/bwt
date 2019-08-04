@@ -8,37 +8,28 @@ import (
 	"github.com/shenwei356/util/byteutil"
 )
 
+// CheckEndSymbol is a global variable for checking end symbol before Burrows–Wheeler transform
+var CheckEndSymbol = true
+
 // ErrEndSymbolExisted means you should choose another EndSymbol
 var ErrEndSymbolExisted = errors.New("bwt: end-symbol existed in string")
 
 // Transform returns Burrows–Wheeler transform  of a byte slice.
 // See https://en.wikipedia.org/wiki/Burrows%E2%80%93Wheeler_transform
-func Transform(s []byte, es byte) ([]byte, [][]byte, error) {
-	count := byteutil.CountOfByte(s)
-	if _, ok := count[es]; ok {
-		return nil, nil, ErrEndSymbolExisted
+func Transform(s []byte, es byte) ([]byte, error) {
+	if CheckEndSymbol {
+		for _, c := range s {
+			if c == es {
+				return nil, ErrEndSymbolExisted
+			}
+		}
 	}
-	s = append(s, es)
-	n := len(s)
-
-	rotations := make([][]byte, n)
-	i := 0
-	for j := 0; j < n; j++ {
-		rotations[i] = append(s[n-j:], s[0:n-j]...)
-		i++
-	}
-	sort.Sort(byteutil.SliceOfByteSlice(rotations))
-
-	bwt := make([]byte, n)
-	i = 0
-	for _, t := range rotations {
-		bwt[i] = t[n-1]
-		i++
-	}
-	return bwt, rotations, nil
+	sa := SuffixArray(s)
+	bwt, err := FromSuffixArray(s, sa, es)
+	return bwt, err
 }
 
-// InverseTransform reverses the bwt to original byte slice
+// InverseTransform reverses the bwt to original byte slice. Not optimized.
 func InverseTransform(t []byte, es byte) []byte {
 	n := len(t)
 	lines := make([][]byte, n)

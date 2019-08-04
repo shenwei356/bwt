@@ -35,9 +35,9 @@ func TestLocate(t *testing.T) {
 
 	for i, c := range cases {
 		fmi = NewFMIndex()
-		_, err = fmi.TransformForLocate([]byte(c.s))
+		_, err = fmi.Transform([]byte(c.s))
 		if err != nil {
-			t.Errorf("case #%d: TransformForLocate: %s", i+1, err)
+			t.Errorf("case #%d: Transform: %s", i+1, err)
 			return
 		}
 

@@ -9,7 +9,7 @@ import (
 func TestTransformAndInverseTransform(t *testing.T) {
 	s := "abracadabra"
 	trans := "ard$rcaaaabb"
-	tr, _, err := Transform([]byte(s), '$')
+	tr, err := Transform([]byte(s), '$')
 	if err != nil {
 		t.Error(err)
 	}
@@ -72,7 +72,7 @@ func init() {
 
 func BenchmarkTransform(t *testing.B) {
 	for _, s := range cases {
-		_, _, err := Transform(s, '$')
+		_, err := Transform(s, '$')
 		if err != nil {
 			t.Error(err)
 			return

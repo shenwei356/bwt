@@ -54,7 +54,8 @@ func InverseTransform(t []byte, es byte) []byte {
 	return s
 }
 
-// SuffixArray returns the suffix array of s
+// SuffixArray returns the suffix array of s.
+// This function is the performance bottleneck of bwt and bwt/fmi package, with O(nlogn).
 func SuffixArray(s []byte) []int {
 	sa := make([]int, len(s)+1)
 	sa[0] = len(s)

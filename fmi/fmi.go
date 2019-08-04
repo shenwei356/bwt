@@ -2,7 +2,6 @@ package fmi
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -17,17 +16,20 @@ type FMIndex struct {
 	// EndSymbol
 	EndSymbol byte
 
+	// SuffixArray
+	SuffixArray []int
+
 	// Burrows-Wheeler Transform
 	BWT []byte
+
+	// First column of BWM
+	F []byte
 
 	// Alphabet in the BWT
 	Alphabet []byte
 
 	// Count of Letters in Alphabet
 	CountOfLetters map[byte]int
-
-	// First column of BWM
-	F []byte
 
 	// C[c] is a table that, for each character c in the alphabet,
 	// contains the number of occurrences of lexically smaller characters
@@ -37,9 +39,6 @@ type FMIndex struct {
 	// Occ(c, k) is the number of occurrences of character c in the
 	// prefix L[1..k], k is 0-based
 	Occ map[byte][]int
-
-	// SuffixArray, only used when call Locate
-	SuffixArray []int
 }
 
 // NewFMIndex is constructor of FMIndex
@@ -101,9 +100,6 @@ func (fmi *FMIndex) nextLetterInAlphabet(c byte) byte {
 	return nextLetter
 }
 
-// ErrSuffixArrayIsNil is xxx
-var ErrSuffixArrayIsNil = errors.New("bwt/fmi: SuffixArray is nil, you should call TransformForLocate instead of Transform")
-
 type sMatch struct {
 	query      []byte
 	start, end int
@@ -120,10 +116,6 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 		if _, ok := fmi.CountOfLetters[letter]; !ok {
 			return locations, nil
 		}
-	}
-
-	if fmi.SuffixArray == nil {
-		return nil, ErrSuffixArrayIsNil
 	}
 
 	n := len(fmi.BWT)

@@ -14,7 +14,7 @@ var CheckEndSymbol = true
 // ErrEndSymbolExisted means you should choose another EndSymbol
 var ErrEndSymbolExisted = errors.New("bwt: end-symbol existed in string")
 
-// Transform returns Burrows–Wheeler transform  of a byte slice.
+// Transform returns Burrows–Wheeler transform of a byte slice.
 // See https://en.wikipedia.org/wiki/Burrows%E2%80%93Wheeler_transform
 func Transform(s []byte, es byte) ([]byte, error) {
 	if CheckEndSymbol {
@@ -29,7 +29,7 @@ func Transform(s []byte, es byte) ([]byte, error) {
 	return bwt, err
 }
 
-// InverseTransform reverses the bwt to original byte slice. Not optimized.
+// InverseTransform reverses the bwt to original byte slice. Not optimized yet.
 func InverseTransform(t []byte, es byte) []byte {
 	n := len(t)
 	lines := make([][]byte, n)

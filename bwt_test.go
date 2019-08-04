@@ -70,12 +70,17 @@ func init() {
 	}
 }
 
+var result []byte
+
 func BenchmarkTransform(t *testing.B) {
-	for _, s := range cases {
-		_, err := Transform(s, '$')
+	var r []byte
+	var err error
+	for i := 0; i < t.N; i++ {
+		r, err = Transform(cases[0], '$')
 		if err != nil {
 			t.Error(err)
 			return
 		}
 	}
+	result = r
 }

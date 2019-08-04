@@ -38,7 +38,7 @@ type FMIndex struct {
 
 	// Occ(c, k) is the number of occurrences of character c in the
 	// prefix L[1..k], k is 0-based
-	Occ map[byte][]int
+	Occ map[byte]*[]int
 }
 
 // NewFMIndex is constructor of FMIndex
@@ -82,7 +82,7 @@ func (fmi *FMIndex) Transform(s []byte) ([]byte, error) {
 // Last2First mapping
 func (fmi *FMIndex) Last2First(i int) int {
 	c := fmi.BWT[i]
-	return fmi.C[c] + fmi.Occ[c][i]
+	return fmi.C[c] + (*fmi.Occ[c])[i]
 }
 
 func (fmi *FMIndex) nextLetterInAlphabet(c byte) byte {
@@ -146,9 +146,9 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 			if match.start == 0 {
 				start = fmi.C[c] + 0
 			} else {
-				start = fmi.C[c] + fmi.Occ[c][match.start-1]
+				start = fmi.C[c] + (*fmi.Occ[c])[match.start-1]
 			}
-			end = fmi.C[c] + fmi.Occ[c][match.end] - 1
+			end = fmi.C[c] + (*fmi.Occ[c])[match.end] - 1
 			//fmt.Printf("    s: %d, e: %d\n", start, end)
 
 			if start <= end {
@@ -227,21 +227,27 @@ func ComputeC(L []byte, alphabet []byte) map[byte]int {
 
 // ComputeOccurrence returns occurrence information.
 // Occ(c, k) is the number of occurrences of character c in the prefix L[1..k]
-func ComputeOccurrence(bwt []byte, letters []byte) map[byte][]int {
+func ComputeOccurrence(bwt []byte, letters []byte) map[byte]*[]int {
 	if letters == nil {
 		letters = byteutil.Alphabet(bwt)
 	}
-	occ := make(map[byte][]int, len(letters)-1)
+	occ := make(map[byte]*[]int, len(letters)-1)
 	for _, letter := range letters {
-		occ[letter] = []int{0}
+		t := make([]int, 1, len(bwt))
+		t[0] = 0
+		occ[letter] = &t
 	}
-	occ[bwt[0]] = []int{1}
-	for _, letter := range bwt[1:] {
-		for k := range occ {
+	t := make([]int, 1, len(bwt))
+	t[0] = 1
+	occ[bwt[0]] = &t
+	var letter, k byte
+	var v *[]int
+	for _, letter = range bwt[1:] {
+		for k, v = range occ {
 			if k == letter {
-				occ[k] = append(occ[k], occ[k][len(occ[k])-1]+1)
+				*v = append(*v, (*v)[len(*v)-1]+1)
 			} else {
-				occ[k] = append(occ[k], occ[k][len(occ[k])-1])
+				*v = append(*v, (*v)[len(*v)-1])
 			}
 		}
 	}

@@ -1,6 +1,7 @@
 package bwt
 
 import (
+	"bytes"
 	"errors"
 	"sort"
 
@@ -64,26 +65,16 @@ func InverseTransform(t []byte, es byte) []byte {
 
 // SuffixArray returns the suffix array of s
 func SuffixArray(s []byte) []int {
-	n := len(s)
-	suffixMap := make(map[string]int, n)
-	for i := 0; i < n; i++ {
-		suffixMap[string(s[i:])] = i
+	sa := make([]int, len(s)+1)
+	sa[0] = len(s)
+
+	for i := 0; i < len(s); i++ {
+		sa[i+1] = i
 	}
-	suffixes := make([]string, n)
-	i := 0
-	for suffix := range suffixMap {
-		suffixes[i] = suffix
-		i++
-	}
-	indice := make([]int, n+1)
-	indice[0] = n
-	i = 1
-	sort.Strings(suffixes)
-	for _, suffix := range suffixes {
-		indice[i] = suffixMap[suffix]
-		i++
-	}
-	return indice
+	sort.Slice(sa[1:], func(i, j int) bool {
+		return bytes.Compare(s[sa[i+1]:], s[sa[j+1]:]) < 0
+	})
+	return sa
 }
 
 // ErrInvalidSuffixArray means length of sa is not equal to 1+len(s)

@@ -1,8 +1,9 @@
 package bwt
 
 import (
-	"bytes"
 	"errors"
+	"index/suffixarray"
+	"reflect"
 	"sort"
 
 	"github.com/shenwei356/util/byteutil"
@@ -57,15 +58,36 @@ func InverseTransform(t []byte, es byte) []byte {
 // SuffixArray returns the suffix array of s.
 // This function is the performance bottleneck of bwt and bwt/fmi package, with O(nlogn).
 func SuffixArray(s []byte) []int {
-	sa := make([]int, len(s)+1)
-	sa[0] = len(s)
+	// sa := make([]int, len(s)+1)
+	// sa[0] = len(s)
 
+	// for i := 0; i < len(s); i++ {
+	// 	sa[i+1] = i
+	// }
+	// sort.Slice(sa[1:], func(i, j int) bool {
+	// 	return bytes.Compare(s[sa[i+1]:], s[sa[j+1]:]) < 0
+	// })
+	// return sa
+
+	// https://github.com/shenwei356/bwt/issues/3 .
+	// nearly copy from https://github.com/crazyleg/burrow-wheelers-golang/blob/master/pkg/bwtgolang/suffixarrayBWT.go#L8
+	// It's 4X faster!
+	//
+	// benchmark                 old ns/op     new ns/op     delta
+	// BenchmarkTransform-16     1339346       310706        -76.80%
+	//
+	// benchmark                 old allocs     new allocs     delta
+	// BenchmarkTransform-16     4              5              +25.00%
+	//
+	// benchmark                 old bytes     new bytes     delta
+	// BenchmarkTransform-16     55362         79962         +44.43%
+	_sa := suffixarray.New(s)
+	tmp := reflect.ValueOf(_sa).Elem().FieldByName("sa").FieldByIndex([]int{0})
+	var sa []int = make([]int, len(s)+1)
+	sa[0] = len(s)
 	for i := 0; i < len(s); i++ {
-		sa[i+1] = i
+		sa[i+1] = int(tmp.Index(i).Int())
 	}
-	sort.Slice(sa[1:], func(i, j int) bool {
-		return bytes.Compare(s[sa[i+1]:], s[sa[j+1]:]) < 0
-	})
 	return sa
 }
 

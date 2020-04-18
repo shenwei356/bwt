@@ -24,6 +24,8 @@ func TestLocate(t *testing.T) {
 		Case{"acctatac", "ac", 0, []int{0, 6}},
 		Case{"acctatac", "tac", 0, []int{5}},
 		Case{"acctatac", "tac", 1, []int{3, 5}},
+		Case{"acctatac", "taz", 1, []int{3, 5}},
+		Case{"ccctatac", "tzc", 1, []int{5}},
 		Case{"acctatac", "atac", 0, []int{4}},
 		Case{"acctatac", "acctatac", 0, []int{0}},
 		Case{"acctatac", "acctatac", 1, []int{0}},

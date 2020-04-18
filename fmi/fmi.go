@@ -112,9 +112,11 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 	locationsMap := make(map[int]struct{})
 	letters := byteutil.Alphabet(query)
 
-	for _, letter := range letters { // query having illegal letter
-		if _, ok := fmi.CountOfLetters[letter]; !ok {
-			return locations, nil
+	if mismatches == 0 {
+		for _, letter := range letters { // query having letter not in alphabet
+			if _, ok := fmi.CountOfLetters[letter]; !ok {
+				return locations, nil
+			}
 		}
 	}
 
@@ -126,9 +128,10 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 	// fmt.Printf("====%s====\n", query)
 	// fmt.Println(fmi)
 	var match sMatch
-	var last byte
+	var last, c byte
 	var start, end int
 	var m int
+	var ok bool
 	for !matches.Empty() {
 		match = matches.Pop().(sMatch)
 		query = match.query[0 : len(match.query)-1]
@@ -136,12 +139,26 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 		if match.mismatches == 0 {
 			letters = []byte{last}
 		} else {
-			letters = fmi.Alphabet
+			letters = append(fmi.Alphabet, last)
 		}
 
 		// fmt.Printf("\n%s, %s, %c\n", match.query, query, last)
 		// fmt.Printf("query: %s, last: %c\n", query, last)
-		for _, c := range letters {
+		for _, c = range letters {
+			if _, ok = fmi.CountOfLetters[c]; !ok { //  letter not in alphabet
+				m = match.mismatches
+				if c != last {
+					if match.mismatches > 1 {
+						m = match.mismatches - 1
+					} else {
+						m = 0
+					}
+				}
+
+				// fmt.Printf("    >>> candidate: query: %s, start: %d, end: %d, m: %d\n", query, start, end, m)
+				matches.Put(sMatch{query: query, start: start, end: end, mismatches: m})
+				continue
+			}
 			// fmt.Printf("letter: %c, start: %d, end: %d, mismatches: %d\n", c, match.start, match.end, match.mismatches)
 			if match.start == 0 {
 				start = fmi.C[c] + 0

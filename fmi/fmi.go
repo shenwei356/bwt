@@ -155,6 +155,10 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 					}
 				}
 
+				if len(query) < 1 {
+					continue
+				}
+
 				// fmt.Printf("    >>> candidate: query: %s, start: %d, end: %d, m: %d\n", query, start, end, m)
 				matches.Put(sMatch{query: query, start: start, end: end, mismatches: m})
 				continue
@@ -182,6 +186,10 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 						} else {
 							m = 0
 						}
+					}
+
+					if len(query) < 1 {
+						continue
 					}
 
 					// fmt.Printf("    >>> candidate: query: %s, start: %d, end: %d, m: %d\n", query, start, end, m)

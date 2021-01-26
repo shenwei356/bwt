@@ -142,10 +142,33 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 			letters = append(fmi.Alphabet, last)
 		}
 
-		// fmt.Printf("\n%s, %s, %c\n", match.query, query, last)
+		// fmt.Println("\n--------------------------------------------")
+		// fmt.Printf("%s, %s, %c\n", match.query, query, last)
 		// fmt.Printf("query: %s, last: %c\n", query, last)
 		for _, c = range letters {
 			if _, ok = fmi.CountOfLetters[c]; !ok { //  letter not in alphabet
+				continue
+			}
+
+			// fmt.Printf("letter: %c, start: %d, end: %d, mismatches: %d\n", c, match.start, match.end, match.mismatches)
+			if match.start == 0 {
+				start = fmi.C[c] + 0
+			} else {
+				start = fmi.C[c] + int((*fmi.Occ[c])[match.start-1])
+			}
+			end = fmi.C[c] + int((*fmi.Occ[c])[match.end]-1)
+			// fmt.Printf("    s: %d, e: %d\n", start, end)
+
+			if start > end {
+				continue
+			}
+
+			if len(query) == 0 {
+				for _, i := range fmi.SuffixArray[start : end+1] {
+					// fmt.Printf("    >>> found: %d\n", i)
+					locationsMap[i] = struct{}{}
+				}
+			} else {
 				m = match.mismatches
 				if c != last {
 					if match.mismatches > 1 {
@@ -155,46 +178,8 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 					}
 				}
 
-				if len(query) < 1 {
-					continue
-				}
-
 				// fmt.Printf("    >>> candidate: query: %s, start: %d, end: %d, m: %d\n", query, start, end, m)
 				matches.Put(sMatch{query: query, start: start, end: end, mismatches: m})
-				continue
-			}
-			// fmt.Printf("letter: %c, start: %d, end: %d, mismatches: %d\n", c, match.start, match.end, match.mismatches)
-			if match.start == 0 {
-				start = fmi.C[c] + 0
-			} else {
-				start = fmi.C[c] + int((*fmi.Occ[c])[match.start-1])
-			}
-			end = fmi.C[c] + int((*fmi.Occ[c])[match.end]-1)
-			//fmt.Printf("    s: %d, e: %d\n", start, end)
-
-			if start <= end {
-				if len(query) == 0 {
-					for _, i := range fmi.SuffixArray[start : end+1] {
-						// fmt.Printf("    >>> found: %d\n", i)
-						locationsMap[i] = struct{}{}
-					}
-				} else {
-					m = match.mismatches
-					if c != last {
-						if match.mismatches > 1 {
-							m = match.mismatches - 1
-						} else {
-							m = 0
-						}
-					}
-
-					if len(query) < 1 {
-						continue
-					}
-
-					// fmt.Printf("    >>> candidate: query: %s, start: %d, end: %d, m: %d\n", query, start, end, m)
-					matches.Put(sMatch{query: query, start: start, end: end, mismatches: m})
-				}
 			}
 		}
 	}
@@ -214,7 +199,7 @@ func (fmi *FMIndex) String() string {
 	buffer.WriteString(fmt.Sprintf("BWT: %s\n", string(fmi.BWT)))
 	buffer.WriteString(fmt.Sprintf("Alphabet: %s\n", string(fmi.Alphabet)))
 	buffer.WriteString("F:\n")
-	buffer.WriteString(string(fmi.F))
+	buffer.WriteString(string(fmi.F) + "\n")
 	buffer.WriteString("C:\n")
 	for _, letter := range fmi.Alphabet {
 		buffer.WriteString(fmt.Sprintf("  %c: %d\n", letter, fmi.C[letter]))

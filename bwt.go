@@ -5,8 +5,6 @@ import (
 	"index/suffixarray"
 	"reflect"
 	"sort"
-
-	"github.com/shenwei356/util/byteutil"
 )
 
 // CheckEndSymbol is a global variable for checking end symbol before Burrows–Wheeler transform
@@ -42,7 +40,7 @@ func InverseTransform(t []byte, es byte) []byte {
 		for j := 0; j < n; j++ {
 			lines[j][n-1-i] = t[j]
 		}
-		sort.Sort(byteutil.SliceOfByteSlice(lines))
+		sort.Sort(SliceOfByteSlice(lines))
 	}
 
 	s := make([]byte, n-1)

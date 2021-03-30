@@ -13,6 +13,6 @@ This package is "go-gettable", just:
 
 ## Licence
 
-Copyright (c) 2015-2019, Wei Shen (shenwei356@gmail.com)
+Copyright (c) 2015-2021, Wei Shen (shenwei356@gmail.com)
 
 [MIT License](https://github.com/shenwei356/bwt/blob/master/LICENSE)

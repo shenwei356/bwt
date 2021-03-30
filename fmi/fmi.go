@@ -9,6 +9,9 @@ import (
 	"github.com/shenwei356/bwt"
 )
 
+// FasterLocating can further accelerate Locate in cost of extra memory (size of reference).
+var FasterLocating = true
+
 // FMIndex is Burrows-Wheeler Index
 type FMIndex struct {
 	// EndSymbol
@@ -40,12 +43,14 @@ type FMIndex struct {
 	// prefix L[1..k], k is 0-based.
 	// Occ map[byte]*[]int32
 	Occ []*[]int32 // slice is faster han map
+
+	hits []byte // for faster searching
 }
 
 // NewFMIndex is constructor of FMIndex
 func NewFMIndex() *FMIndex {
 	fmi := new(FMIndex)
-	fmi.EndSymbol = '$'
+	fmi.EndSymbol = byte(0)
 	return fmi
 }
 
@@ -90,6 +95,10 @@ func (fmi *FMIndex) Transform(s []byte) ([]byte, error) {
 
 	fmi.Occ = computeOccurrence(fmi.BWT, fmi.Alphabet)
 
+	if FasterLocating {
+		fmi.hits = make([]byte, len(s))
+	}
+
 	return fmi.BWT, nil
 }
 
@@ -116,24 +125,28 @@ func (fmi *FMIndex) nextLetterInAlphabet(c byte) byte {
 
 // Locate locates the pattern
 func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
-	locations := []int{}
-	locationsMap := make(map[int]struct{})
+	var locations []int
 
-	// letters := byteutil.Alphabet(query)
-	count := make([]int, 128)
-	for _, b := range query {
-		if count[b] == 0 {
-			count[b]++
-		}
-	}
-	letters := make([]byte, 0, 128)
-	for b, c := range count {
-		if c > 0 {
-			letters = append(letters, byte(b))
-		}
+	var locationsMap map[int]struct{}
+	if !FasterLocating {
+		locationsMap = make(map[int]struct{})
 	}
 
 	if mismatches == 0 {
+		// letters := byteutil.Alphabet(query)
+		count := make([]int, 128)
+		for _, b := range query {
+			if count[b] == 0 {
+				count[b]++
+			}
+		}
+		letters := make([]byte, 0, 128)
+		for b, c := range count {
+			if c > 0 {
+				letters = append(letters, byte(b))
+			}
+		}
+
 		for _, letter := range letters { // query having letter not in alphabet
 			// if _, ok := fmi.CountOfLetters[letter]; !ok {
 			if fmi.CountOfLetters[letter] == 0 {
@@ -153,6 +166,12 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 	var last, c byte
 	var start, end int
 	var m int
+
+	var letters []byte
+	nA := len(fmi.Alphabet)
+	letter2 := make([]byte, nA+1)
+	copy(letter2[0:nA], fmi.Alphabet)
+
 	// var ok bool
 	for !matches.Empty() {
 		match = matches.Pop()
@@ -161,7 +180,9 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 		if match.mismatches == 0 {
 			letters = []byte{last}
 		} else {
-			letters = append(fmi.Alphabet, last)
+			// letters = append(fmi.Alphabet, last)
+			letter2[nA] = last
+			letters = letter2
 		}
 
 		// fmt.Println("\n--------------------------------------------")
@@ -189,7 +210,11 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 			if len(query) == 0 {
 				for _, i := range fmi.SuffixArray[start : end+1] {
 					// fmt.Printf("    >>> found: %d\n", i)
-					locationsMap[i] = struct{}{}
+					if FasterLocating {
+						fmi.hits[i] = 1
+					} else {
+						locationsMap[i] = struct{}{}
+					}
 				}
 			} else {
 				m = match.mismatches
@@ -206,14 +231,122 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 			}
 		}
 	}
-	i := 0
-	locations = make([]int, len(locationsMap))
-	for loc := range locationsMap {
-		locations[i] = loc
-		i++
+
+	if FasterLocating {
+		locations = make([]int, 0, 8)
+		for i, c := range fmi.hits {
+			if c > 0 {
+				locations = append(locations, i)
+			}
+		}
+	} else {
+		i := 0
+		locations = make([]int, len(locationsMap))
+		for loc := range locationsMap {
+			locations[i] = loc
+			i++
+		}
+		sort.Ints(locations)
 	}
-	sort.Ints(locations)
 	return locations, nil
+}
+
+// Match is a simple version of Locate, which returns immediately for a match.
+func (fmi *FMIndex) Match(query []byte, mismatches int) (bool, error) {
+	if mismatches == 0 {
+		// letters := byteutil.Alphabet(query)
+		count := make([]int, 128)
+		for _, b := range query {
+			if count[b] == 0 {
+				count[b]++
+			}
+		}
+		letters := make([]byte, 0, 128)
+		for b, c := range count {
+			if c > 0 {
+				letters = append(letters, byte(b))
+			}
+		}
+
+		for _, letter := range letters { // query having letter not in alphabet
+			// if _, ok := fmi.CountOfLetters[letter]; !ok {
+			if fmi.CountOfLetters[letter] == 0 {
+				return false, nil
+			}
+		}
+	}
+
+	n := len(fmi.BWT)
+	var matches Stack
+
+	// start and end are 0-based
+	matches.Put(sMatch{query: query, start: 0, end: n - 1, mismatches: mismatches})
+	// fmt.Printf("====%s====\n", query)
+	// fmt.Println(fmi)
+	var match sMatch
+	var last, c byte
+	var start, end int
+	var m int
+
+	var letters []byte
+	nA := len(fmi.Alphabet)
+	letter2 := make([]byte, nA+1)
+	copy(letter2[0:nA], fmi.Alphabet)
+
+	// var ok bool
+	for !matches.Empty() {
+		match = matches.Pop()
+		query = match.query[0 : len(match.query)-1]
+		last = match.query[len(match.query)-1]
+		if match.mismatches == 0 {
+			letters = []byte{last}
+		} else {
+			// letters = append(fmi.Alphabet, last)
+			letter2[nA] = last
+			letters = letter2
+		}
+
+		// fmt.Println("\n--------------------------------------------")
+		// fmt.Printf("%s, %s, %c\n", match.query, query, last)
+		// fmt.Printf("query: %s, last: %c\n", query, last)
+		for _, c = range letters {
+			// if _, ok = fmi.CountOfLetters[c]; !ok { //  letter not in alphabet
+			if fmi.CountOfLetters[c] == 0 {
+				continue
+			}
+
+			// fmt.Printf("letter: %c, start: %d, end: %d, mismatches: %d\n", c, match.start, match.end, match.mismatches)
+			if match.start == 0 {
+				start = fmi.C[c] + 0
+			} else {
+				start = fmi.C[c] + int((*fmi.Occ[c])[match.start-1])
+			}
+			end = fmi.C[c] + int((*fmi.Occ[c])[match.end]-1)
+			// fmt.Printf("    s: %d, e: %d\n", start, end)
+
+			if start > end {
+				continue
+			}
+
+			if len(query) == 0 {
+				return true, nil
+			} else {
+				m = match.mismatches
+				if c != last {
+					if match.mismatches > 1 {
+						m = match.mismatches - 1
+					} else {
+						m = 0
+					}
+				}
+
+				// fmt.Printf("    >>> candidate: query: %s, start: %d, end: %d, m: %d\n", query, start, end, m)
+				matches.Put(sMatch{query: query, start: start, end: end, mismatches: m})
+			}
+		}
+	}
+
+	return false, nil
 }
 
 func (fmi *FMIndex) String() string {

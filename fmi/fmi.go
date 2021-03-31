@@ -44,7 +44,8 @@ type FMIndex struct {
 	// Occ map[byte]*[]int32
 	Occ []*[]int32 // slice is faster han map
 
-	hits []byte // for faster searching
+	reseted bool
+	hits    []byte // for faster searching
 }
 
 // NewFMIndex is constructor of FMIndex
@@ -97,6 +98,7 @@ func (fmi *FMIndex) Transform(s []byte) ([]byte, error) {
 
 	if FasterLocating {
 		fmi.hits = make([]byte, len(s))
+		fmi.reseted = true
 	}
 
 	return fmi.BWT, nil
@@ -130,6 +132,12 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 	var locationsMap map[int]struct{}
 	if !FasterLocating {
 		locationsMap = make(map[int]struct{})
+	} else if !fmi.reseted {
+		for i, h := range fmi.hits {
+			if h > 0 {
+				fmi.hits[i] = 0
+			}
+		}
 	}
 
 	if mismatches == 0 {
@@ -168,9 +176,6 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 	var m int
 
 	var letters []byte
-	nA := len(fmi.Alphabet)
-	letter2 := make([]byte, nA+1)
-	copy(letter2[0:nA], fmi.Alphabet)
 
 	// var ok bool
 	for !matches.Empty() {
@@ -180,9 +185,7 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 		if match.mismatches == 0 {
 			letters = []byte{last}
 		} else {
-			// letters = append(fmi.Alphabet, last)
-			letter2[nA] = last
-			letters = letter2
+			letters = fmi.Alphabet
 		}
 
 		// fmt.Println("\n--------------------------------------------")
@@ -248,6 +251,7 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 		}
 		sort.Ints(locations)
 	}
+	fmi.reseted = false
 	return locations, nil
 }
 
@@ -289,9 +293,6 @@ func (fmi *FMIndex) Match(query []byte, mismatches int) (bool, error) {
 	var m int
 
 	var letters []byte
-	nA := len(fmi.Alphabet)
-	letter2 := make([]byte, nA+1)
-	copy(letter2[0:nA], fmi.Alphabet)
 
 	// var ok bool
 	for !matches.Empty() {
@@ -301,9 +302,7 @@ func (fmi *FMIndex) Match(query []byte, mismatches int) (bool, error) {
 		if match.mismatches == 0 {
 			letters = []byte{last}
 		} else {
-			// letters = append(fmi.Alphabet, last)
-			letter2[nA] = last
-			letters = letter2
+			letters = fmi.Alphabet
 		}
 
 		// fmt.Println("\n--------------------------------------------")

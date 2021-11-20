@@ -1,6 +1,5 @@
 # bwt
-
-[![GoDoc](https://godoc.org/github.com/shenwei356/bwt?status.svg)](https://godoc.org/github.com/shenwei356/bwt)
+[![Go Reference](https://pkg.go.dev/badge/github.com/shenwei356/bwt.svg)](https://pkg.go.dev/github.com/shenwei356/bwt)
 [![Go Report Card](https://goreportcard.com/badge/github.com/shenwei356/bwt)](https://goreportcard.com/report/github.com/shenwei356/bwt)
 
 Burrows-Wheeler Transform and FM-index in golang

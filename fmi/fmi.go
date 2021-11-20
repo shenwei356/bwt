@@ -9,9 +9,6 @@ import (
 	"github.com/shenwei356/bwt"
 )
 
-// FasterLocating can further accelerate Locate in cost of extra memory (size of reference).
-var FasterLocating = true
-
 // FMIndex is Burrows-Wheeler Index
 type FMIndex struct {
 	// EndSymbol
@@ -43,9 +40,6 @@ type FMIndex struct {
 	// prefix L[1..k], k is 0-based.
 	// Occ map[byte]*[]int32
 	Occ []*[]int32 // slice is faster han map
-
-	reseted bool
-	hits    []byte // for faster searching
 }
 
 // NewFMIndex is constructor of FMIndex
@@ -96,11 +90,6 @@ func (fmi *FMIndex) Transform(s []byte) ([]byte, error) {
 
 	fmi.Occ = computeOccurrence(fmi.BWT, fmi.Alphabet)
 
-	if FasterLocating {
-		fmi.hits = make([]byte, len(s))
-		fmi.reseted = true
-	}
-
 	return fmi.BWT, nil
 }
 
@@ -129,16 +118,7 @@ func (fmi *FMIndex) nextLetterInAlphabet(c byte) byte {
 func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 	var locations []int
 
-	var locationsMap map[int]struct{}
-	if !FasterLocating {
-		locationsMap = make(map[int]struct{})
-	} else if !fmi.reseted {
-		for i, h := range fmi.hits {
-			if h > 0 {
-				fmi.hits[i] = 0
-			}
-		}
-	}
+	locationsMap := make(map[int]struct{})
 
 	if mismatches == 0 {
 		// letters := byteutil.Alphabet(query)
@@ -213,11 +193,7 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 			if len(query) == 0 {
 				for _, i := range fmi.SuffixArray[start : end+1] {
 					// fmt.Printf("    >>> found: %d\n", i)
-					if FasterLocating {
-						fmi.hits[i] = 1
-					} else {
-						locationsMap[i] = struct{}{}
-					}
+					locationsMap[i] = struct{}{}
 				}
 			} else {
 				m = match.mismatches
@@ -235,23 +211,14 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 		}
 	}
 
-	if FasterLocating {
-		locations = make([]int, 0, 8)
-		for i, c := range fmi.hits {
-			if c > 0 {
-				locations = append(locations, i)
-			}
-		}
-	} else {
-		i := 0
-		locations = make([]int, len(locationsMap))
-		for loc := range locationsMap {
-			locations[i] = loc
-			i++
-		}
-		sort.Ints(locations)
+	i := 0
+	locations = make([]int, len(locationsMap))
+	for loc := range locationsMap {
+		locations[i] = loc
+		i++
 	}
-	fmi.reseted = false
+	sort.Ints(locations)
+
 	return locations, nil
 }
 

@@ -35,6 +35,16 @@ func TestFromSuffixArray(t *testing.T) {
 	}
 }
 
+func TestFromSuffixArrayEmptySeq(t *testing.T) {
+	s := ""
+
+	sa := SuffixArray([]byte(s))
+	_, err := FromSuffixArray([]byte(s), sa, '$')
+	if err == nil || err != ErrEmptySeq {
+		t.Error("Test failed: FromSuffixArray error")
+	}
+}
+
 func TestSA(t *testing.T) {
 	s := "mississippi"
 	sa := SuffixArray([]byte(s))

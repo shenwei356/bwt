@@ -13,9 +13,15 @@ var CheckEndSymbol = true
 // ErrEndSymbolExisted means you should choose another EndSymbol
 var ErrEndSymbolExisted = errors.New("bwt: end-symbol existed in string")
 
+// ErrEmptySeq means a empty sequence is given
+var ErrEmptySeq = errors.New("bwt: empty sequence")
+
 // Transform returns Burrows–Wheeler transform of a byte slice.
 // See https://en.wikipedia.org/wiki/Burrows%E2%80%93Wheeler_transform
 func Transform(s []byte, es byte) ([]byte, error) {
+	if len(s) == 0 {
+		return nil, ErrEmptySeq
+	}
 	if CheckEndSymbol {
 		for _, c := range s {
 			if c == es {
@@ -94,6 +100,9 @@ var ErrInvalidSuffixArray = errors.New("bwt: invalid suffix array")
 
 // FromSuffixArray compute BWT from sa
 func FromSuffixArray(s []byte, sa []int, es byte) ([]byte, error) {
+	if len(s) == 0 {
+		return nil, ErrEmptySeq
+	}
 	if len(s)+1 != len(sa) || sa[0] != len(s) {
 		return nil, ErrInvalidSuffixArray
 	}

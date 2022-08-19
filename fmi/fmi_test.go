@@ -2,6 +2,8 @@ package fmi
 
 import (
 	"testing"
+
+	"github.com/shenwei356/bwt"
 )
 
 type Case struct {
@@ -11,6 +13,8 @@ type Case struct {
 }
 
 var cases = []Case{
+	{"", "abc", 0, []int{}},
+	{"mississippi", "", 0, []int{}},
 	{"mississippi", "iss", 0, []int{1, 4}},
 	{"abcabcabc", "abc", 0, []int{0, 3, 6}},
 	{"abcabcabc", "gef", 0, []int{}},
@@ -43,8 +47,12 @@ func TestLocate(t *testing.T) {
 		fmi = NewFMIndex()
 		_, err = fmi.Transform([]byte(c.s))
 		if err != nil {
-			t.Errorf("case #%d: Transform: %s", i+1, err)
-			return
+			if c.s == "" && err == bwt.ErrEmptySeq {
+				continue
+			} else {
+				t.Errorf("case #%d: Transform: %s", i+1, err)
+				return
+			}
 		}
 
 		match, err = fmi.Match([]byte(c.q), c.m)
@@ -70,8 +78,12 @@ func TestMatch(t *testing.T) {
 		fmi = NewFMIndex()
 		_, err = fmi.Transform([]byte(c.s))
 		if err != nil {
-			t.Errorf("case #%d: Transform: %s", i+1, err)
-			return
+			if c.s == "" && err == bwt.ErrEmptySeq {
+				continue
+			} else {
+				t.Errorf("case #%d: Transform: %s", i+1, err)
+				return
+			}
 		}
 
 		loc, err = fmi.Locate([]byte(c.q), c.m)

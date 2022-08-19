@@ -51,6 +51,9 @@ func NewFMIndex() *FMIndex {
 
 // Transform return Burrows-Wheeler-Transform of s
 func (fmi *FMIndex) Transform(s []byte) ([]byte, error) {
+	if len(s) == 0 {
+		return nil, bwt.ErrEmptySeq
+	}
 	var err error
 
 	sa := bwt.SuffixArray(s)
@@ -116,6 +119,9 @@ func (fmi *FMIndex) nextLetterInAlphabet(c byte) byte {
 
 // Locate locates the pattern
 func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
+	if len(query) == 0 {
+		return []int{}, nil
+	}
 	var locations []int
 
 	locationsMap := make(map[int]struct{})
@@ -224,6 +230,9 @@ func (fmi *FMIndex) Locate(query []byte, mismatches int) ([]int, error) {
 
 // Match is a simple version of Locate, which returns immediately for a match.
 func (fmi *FMIndex) Match(query []byte, mismatches int) (bool, error) {
+	if len(query) == 0 {
+		return false, nil
+	}
 	if mismatches == 0 {
 		// letters := byteutil.Alphabet(query)
 		count := make([]int, 128)
@@ -342,20 +351,21 @@ func (fmi *FMIndex) String() string {
 // C[c] is a table that, for each character c in the alphabet,
 // contains the number of occurrences of lexically smaller characters
 // in the text.
-// func ComputeC(L []byte, alphabet []byte) map[byte]int {
-// 	if alphabet == nil {
-// 		alphabet = byteutil.Alphabet(L)
-// 	}
-// 	C := make(map[byte]int, len(alphabet))
-// 	count := 0
-// 	for _, c := range L {
-// 		if _, ok := C[c]; !ok {
-// 			C[c] = count
-// 		}
-// 		count++
-// 	}
-// 	return C
-// }
+//
+//	func ComputeC(L []byte, alphabet []byte) map[byte]int {
+//		if alphabet == nil {
+//			alphabet = byteutil.Alphabet(L)
+//		}
+//		C := make(map[byte]int, len(alphabet))
+//		count := 0
+//		for _, c := range L {
+//			if _, ok := C[c]; !ok {
+//				C[c] = count
+//			}
+//			count++
+//		}
+//		return C
+//	}
 func computeC(L []byte) []int {
 	C := make([]int, 128)
 	count := 0
@@ -370,32 +380,33 @@ func computeC(L []byte) []int {
 
 // ComputeOccurrence returns occurrence information.
 // Occ(c, k) is the number of occurrences of character c in the prefix L[1..k]
-// func ComputeOccurrence(bwt []byte, letters []byte) map[byte]*[]int32 {
-// 	if letters == nil {
-// 		letters = byteutil.Alphabet(bwt)
-// 	}
-// 	occ := make(map[byte]*[]int32, len(letters)-1)
-// 	for _, letter := range letters {
-// 		t := make([]int32, 1, len(bwt))
-// 		t[0] = 0
-// 		occ[letter] = &t
-// 	}
-// 	t := make([]int32, 1, len(bwt))
-// 	t[0] = 1
-// 	occ[bwt[0]] = &t
-// 	var letter, k byte
-// 	var v *[]int32
-// 	for _, letter = range bwt[1:] {
-// 		for k, v = range occ {
-// 			if k == letter {
-// 				*v = append(*v, (*v)[len(*v)-1]+1)
-// 			} else {
-// 				*v = append(*v, (*v)[len(*v)-1])
-// 			}
-// 		}
-// 	}
-// 	return occ
-// }
+//
+//	func ComputeOccurrence(bwt []byte, letters []byte) map[byte]*[]int32 {
+//		if letters == nil {
+//			letters = byteutil.Alphabet(bwt)
+//		}
+//		occ := make(map[byte]*[]int32, len(letters)-1)
+//		for _, letter := range letters {
+//			t := make([]int32, 1, len(bwt))
+//			t[0] = 0
+//			occ[letter] = &t
+//		}
+//		t := make([]int32, 1, len(bwt))
+//		t[0] = 1
+//		occ[bwt[0]] = &t
+//		var letter, k byte
+//		var v *[]int32
+//		for _, letter = range bwt[1:] {
+//			for k, v = range occ {
+//				if k == letter {
+//					*v = append(*v, (*v)[len(*v)-1]+1)
+//				} else {
+//					*v = append(*v, (*v)[len(*v)-1])
+//				}
+//			}
+//		}
+//		return occ
+//	}
 func computeOccurrence(bwt []byte, letters []byte) []*[]int32 {
 	if letters == nil {
 		count := make([]int, 128)

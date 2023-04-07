@@ -15,3 +15,9 @@ This package is "go-gettable", just:
 Copyright (c) 2015-2021, Wei Shen (shenwei356@gmail.com)
 
 [MIT License](https://github.com/shenwei356/bwt/blob/master/LICENSE)
+
+## Other resources
+
+- [String algorithm visualizations](https://curiouscoding.nl/posts/alg-viz/)
+- [Linear-time suffix array construction](https://curiouscoding.nl/notes/suffix-array-construction/)
+- [BWT and FM-index](https://curiouscoding.nl/notes/bwt/)
